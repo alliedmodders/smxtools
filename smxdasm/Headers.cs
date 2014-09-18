@@ -85,10 +85,10 @@ namespace smxdasm
         public byte[] Data;
         public SectionEntry[] Sections;
 
-        private string string_at(int index)
+        private string string_at(int index, int maxread=-1)
         {
             int count = 0;
-            for (int i = (int)stringtab + index; i < Data.Length; i++)
+            for (int i = (int)stringtab + index; i < Data.Length && (maxread == -1 || count <= maxread); i++)
             {
                 if (Data[i] == 0)
                     break;
@@ -181,7 +181,15 @@ namespace smxdasm
                 entry.Size = rd.ReadInt32();
                 if (entry.Size < 0)
                     throw new Exception("section size overflow");
-                entry.Name = header.string_at(entry.nameoffs);
+
+                if(i == header.num_sections - 1)
+                {
+                    // Some filthy plugins got altered and have the last null-terminator removed, which leads to garbage in the last section's name.
+                    // We know the code starts right after the last name, so only read as much bytes and don't wait for the null terminator.
+                    entry.Name = header.string_at(entry.nameoffs, header.Sections[0].dataoffs - (header.stringtab + entry.nameoffs) - 2);
+                }
+                else
+                    entry.Name = header.string_at(entry.nameoffs);
                 header.Sections[i] = entry;
             }
 
