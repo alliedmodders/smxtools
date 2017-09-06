@@ -180,6 +180,7 @@ namespace smxdasm
             Prep(V1Opcode.ZERO_S, V1Param.Stack);
         }
 
+        private SmxFile file_;
         private byte[] data_;
         private int code_start_;
         private int proc_offset_;
@@ -205,6 +206,7 @@ namespace smxdasm
 
         private V1Disassembler(SmxFile file, SmxCodeV1Section code, int proc_offset)
         {
+            file_ = file;
             data_ = file.Header.Data;
             code_start_ = code.CodeStart;
             proc_offset_ = proc_offset;
@@ -247,6 +249,14 @@ namespace smxdasm
                 insn.Params = new int[insn.Info.Params.Length];
                 for (var i = 0; i < insn.Info.Params.Length; i++)
                     insn.Params[i] = readNext();
+
+                // Catch calls to unknown functions so they can be disassembled easily too.
+                if (op == (int)V1Opcode.CALL)
+                {
+                    var addr = insn.Params[0];
+                    if (file_.FindFunctionName(addr) == "(unknown)")
+                        file_.CalledFunctions.AddFunction((uint)addr);
+                }
             }
             return insns.ToArray();
         }

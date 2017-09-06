@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Collections.Generic;
 
 namespace smxdasm
@@ -22,6 +23,8 @@ namespace smxdasm
         public SmxDebugNativesTable DebugNatives;
         public SmxDebugSymbolsTable DebugSymbols;
 
+        public SmxCalledFunctionsTable CalledFunctions;
+
         public SmxFile(BinaryReader br)
         {
             Header = FileHeader.From(br);
@@ -36,7 +39,9 @@ namespace smxdasm
                 else if (section.Name == ".dbg.info")
                     DebugInfo = new SmxDebugInfoSection(Header, section);
             }
-            
+
+            CalledFunctions = new SmxCalledFunctionsTable();
+
             // Parse out other sections.
             var unknown = new List<SectionEntry>();
             foreach (var section in Header.Sections)
@@ -83,6 +88,53 @@ namespace smxdasm
                 }
             }
             UnknownSections = unknown.ToArray();
+
+            // Disassemble all functions right away to find all called functions.
+            if (DebugSymbols != null)
+            {
+                foreach (var entry in DebugSymbols.Entries)
+                {
+                    if (entry.Ident != SymKind.Function)
+                        continue;
+
+                    try
+                    {
+                        V1Disassembler.Disassemble(this, CodeV1, entry.Address);
+                    }
+                    catch (Exception)
+                    {
+                        continue;
+                    }
+                }
+            }
+            if (Publics != null)
+            {
+                foreach (var pubfun in Publics.Entries)
+                {
+                    try
+                    {
+                        V1Disassembler.Disassemble(this, CodeV1, (int)pubfun.Address);
+                    }
+                    catch (Exception)
+                    {
+                        continue;
+                    }
+                }
+            }
+            if (CalledFunctions != null)
+            {
+                foreach (var fun in CalledFunctions.Entries)
+                {
+                    try
+                    {
+                        V1Disassembler.Disassemble(this, CodeV1, (int)fun.Address);
+                    }
+                    catch (Exception)
+                    {
+                        continue;
+                    }
+                }
+            }
         }
 
         public string FindFunctionName(int address)
@@ -99,6 +151,14 @@ namespace smxdasm
                 {
                     if (pubfun.Address == address)
                         return pubfun.Name;
+                }
+            }
+            if (CalledFunctions != null)
+            {
+                foreach (var fun in CalledFunctions.Entries)
+                {
+                    if (fun.Address == address)
+                        return fun.Name;
                 }
             }
             return "(unknown)";
