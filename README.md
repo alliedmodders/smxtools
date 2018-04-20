@@ -1,6 +1,3 @@
-smxtools
-========
+This repository is no longer in use.
 
-Tools for inspecting .smx files. Included are two projects:
-* smxdasm - A C# library for reading .smx files.
-* smxviewer - A C# UI for inspecting .smx files.
+It has moved to https://github.com/alliedmodders/sourcepawn under `tools/smxtools`.
